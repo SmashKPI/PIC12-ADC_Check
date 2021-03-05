@@ -36,10 +36,6 @@ adc1Conf	EQU	b'10010000'	; Right Just, Fosc/8 Vref = VDD
 #define	ADC_ON	ADCON0, 0	; TEnable ADC bit
 #define AN3_AN	ANSELA, 4	; RA4 in analog 
 
-;	Global Variables
-cnt50us		SET 33			; A counter for 50us delay
- 
-
 	ORG	0x00
 ; Main body
 MainRoutine
@@ -90,7 +86,7 @@ portConfig
 	BANKSEL ANSELA
 	MOVLW	allDigit
 	MOVWF	ANSELA		; All pins are digital
-	BSF		AN3_AN
+	BSF	AN3_AN
 
 	BANKSEL LATA
 	MOVLW	initPort
@@ -115,7 +111,7 @@ adcConfig
 	BANKSEL	ADCON0
 	MOVLW	chan3
 	IORWF	ADCON0	; Channel 3, GO is 0, ADC is OFF
-	BSF		ADC_ON	; Turning on ADC 
+	BSF	ADC_ON	; Turning on ADC 
 	
 	RETURN
 
@@ -126,31 +122,20 @@ adcConfig
 ;				state of LED according to the ADC value
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
 sampleADC
-	;CALL	delay50uS
+	CALL	delay50uS
 	BANKSEL ADCON0
-	BSF		ADCON0, 1	; Start sampling
+	BSF		ADCON0, GO	; Start sampling
 busyADC	
-	BTFSC	ADCON0, 1	; Wait till sampling is done 
+	BTFSC	ADCON0, GO	; Wait till sampling is done 
 	GOTO	busyADC		
-	; Check first 8 bit
-	BANKSEL	ADRESL
-	MOVF 	ADRESL,W
-	SUBWF	0x00		; 512 = b'1000000000', so first 8 bit = 0
-	; Check rest
+	;512 = b'1000000000', so first 8 bit = 0
 	BANKSEL	ADRESH
-	MOVF 	ADRESH,W 
-	SUBWFB	512 >> 8	; Check top bits
-	
-	BANKSEL STATUS
-	BTFSC	STATUS, 0	; Skip if ADRES > 512
-	GOTO	turnOff
+	LSRF	ADRESH	; if (ADRES < 512)
 	BANKSEL	LATA
-	BSF		LED
-	GOTO	endADC
-turnOff
-	BANKSEL	LATA
+	SKPNZ
 	BCF		LED
-endADC 	
+	SKPZ
+	BSF		LED 
 	RETURN
 	
 
@@ -166,42 +151,15 @@ delay50uS
 ;	loop will take 3 cy per time. If Fosc = 8MHz,
 ;	Fcy = 2MHz => Tcy = .5us. To get 50us delay, 
 ;	100 cy must be done. It will take 33 iterations
-;	Thus, cnt is equal to 33 
-
+;	Thus, cnt is equal to 32 
+	MOVLW	.32
 waitLoop
-	DECFSZ	cnt50us, 1
+	DECFSZ	WREG
 	GOTO	waitLoop
 	
 	RETURN
 	
 	END
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	
+	
+	
